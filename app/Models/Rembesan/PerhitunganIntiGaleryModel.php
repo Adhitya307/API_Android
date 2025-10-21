@@ -34,4 +34,38 @@ class PerhitunganIntiGaleryModel extends Model
             'is_not_unique'=> 'Data pengukuran dengan ID {value} tidak ditemukan'
         ]
     ];
+
+    /**
+     * Proses hitung Inti Galery untuk 1 pengukuran
+     */
+    public function proses($pengukuranId)
+    {
+        helper('rembesan/rumus_intigalery'); // panggil helper
+
+        log_message('debug', "[IntiGalery] ▶️ Mulai proses untuk ID {$pengukuranId}");
+
+        $hasil = hitungIntiGalery((int) $pengukuranId);
+
+        if ($hasil === false) {
+            log_message('error', "[IntiGalery] ❌ Gagal hitung untuk ID {$pengukuranId}");
+            return false;
+        }
+
+        // Tambahkan pengukuran_id
+        $hasil['pengukuran_id'] = $pengukuranId;
+
+        // Insert atau update DB
+        $existing = $this->where('pengukuran_id', $pengukuranId)->first();
+        if ($existing) {
+            $this->update($existing['id'], $hasil);
+            log_message('debug', "[IntiGalery] 🔄 Update DB untuk pengukuran_id={$pengukuranId} | Data=" . json_encode($hasil));
+        } else {
+            $this->insert($hasil);
+            log_message('debug', "[IntiGalery] 🆕 Insert DB untuk pengukuran_id={$pengukuranId} | Data=" . json_encode($hasil));
+        }
+
+        log_message('debug', "[IntiGalery] ✅ Proses selesai untuk ID {$pengukuranId}");
+
+        return $hasil;
+    }
 }

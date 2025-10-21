@@ -1,5 +1,6 @@
 <?php
 namespace App\Models\Rembesan;
+
 use CodeIgniter\Model;
 
 class PerhitunganSRModel extends Model
@@ -14,35 +15,39 @@ class PerhitunganSRModel extends Model
         'sr_104_q', 'sr_106_q',
         'created_at', 'updated_at'
     ];
-    
-    protected $validationRules = [
-        'pengukuran_id' => 'required|numeric|is_not_unique[t_data_pengukuran.id]',
-        'sr_1_q' => 'permit_empty|numeric',
-        'sr_40_q' => 'permit_empty|numeric',
-        'sr_66_q' => 'permit_empty|numeric',
-        'sr_68_q' => 'permit_empty|numeric',
-        'sr_70_q' => 'permit_empty|numeric',
-        'sr_79_q' => 'permit_empty|numeric',
-        'sr_81_q' => 'permit_empty|numeric',
-        'sr_83_q' => 'permit_empty|numeric',
-        'sr_85_q' => 'permit_empty|numeric',
-        'sr_92_q' => 'permit_empty|numeric',
-        'sr_94_q' => 'permit_empty|numeric',
-        'sr_96_q' => 'permit_empty|numeric',
-        'sr_98_q' => 'permit_empty|numeric',
-        'sr_100_q' => 'permit_empty|numeric',
-        'sr_102_q' => 'permit_empty|numeric',
-        'sr_104_q' => 'permit_empty|numeric',
-        'sr_106_q' => 'permit_empty|numeric'
-    ];
-    
-    protected $validationMessages = [
-        'pengukuran_id' => [
-            'required' => 'pengukuran_id harus diisi',
-            'numeric' => 'pengukuran_id harus berupa angka',
-            'is_not_unique' => 'Data pengukuran dengan ID {value} tidak ditemukan'
-        ]
-    ];
-    
+
     protected $useTimestamps = true;
+
+    /**
+     * Logika hitung SR dipindahkan ke sini
+     */
+    public function hitung($pengukuran_id, array $dataMentah)
+    {
+        helper('rumus/sr');
+
+        $fields = [
+            'sr_1', 'sr_40', 'sr_66', 'sr_68', 'sr_70',
+            'sr_79', 'sr_81', 'sr_83', 'sr_85',
+            'sr_92', 'sr_94', 'sr_96', 'sr_98',
+            'sr_100', 'sr_102', 'sr_104', 'sr_106'
+        ];
+
+        $hasil = ['pengukuran_id' => $pengukuran_id];
+
+        foreach ($fields as $f) {
+            $kode = $dataMentah[$f . '_kode'] ?? null;
+            $nilai = $dataMentah[$f . '_nilai'] ?? null;
+            $hasil[$f . '_q'] = perhitunganQ_sr($nilai, $kode);
+        }
+
+        $existing = $this->where('pengukuran_id', $pengukuran_id)->first();
+
+        if ($existing) {
+            $this->update($existing['id'], $hasil);
+        } else {
+            $this->insert($hasil);
+        }
+
+        return $hasil;
+    }
 }

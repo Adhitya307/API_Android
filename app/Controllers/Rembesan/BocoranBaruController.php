@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Controllers\Rembesan;
 
 use App\Controllers\BaseController;
@@ -13,62 +12,36 @@ class BocoranBaruController extends BaseController
 
     public function __construct()
     {
-        $this->bocoranModel = new MBocoranBaru();
-        $this->perhitunganModel = new PerhitunganBocoranModel();
+        $this->bocoranModel       = new MBocoranBaru();
+        $this->perhitunganModel   = new PerhitunganBocoranModel();
     }
 
     /**
-     * Simpan data bocoran baru dan hitung perhitungan
+     * Simpan data bocoran baru dan hitung perhitungan otomatis
      */
     public function simpanBocoran()
     {
         $data = $this->request->getPost();
 
-        // Validasi data mentah bocoran
-        if (!$this->bocoranModel->save($data)) {
+        // Simpan data mentah bocoran lewat model
+        $simpan = $this->bocoranModel->simpanBocoran($data, $data['pengukuran_id']);
+
+        if ($simpan['status'] !== 'success') {
             return $this->response->setJSON([
-                'status' => 'error',
-                'message' => 'Gagal menyimpan bocoran',
-                'errors' => $this->bocoranModel->errors()
+                'status'  => 'error',
+                'message' => $simpan['message']
             ]);
         }
 
-        $pengukuran_id = $this->bocoranModel->getInsertID();
-
-        // Trigger perhitungan otomatis
-        $this->hitungLangsung($data['pengukuran_id']);
+        // Trigger perhitungan otomatis lewat model
+        $bocoran = $this->bocoranModel->where('pengukuran_id', $data['pengukuran_id'])->first();
+        $hasil   = $this->perhitunganModel->hitungLangsung($bocoran);
 
         return $this->response->setJSON([
-            'status' => 'success',
-            'message' => 'Data bocoran berhasil disimpan dan perhitungan dipicu',
-            'pengukuran_id' => $data['pengukuran_id']
+            'status'          => 'success',
+            'message'         => 'Data bocoran berhasil disimpan dan perhitungan dipicu',
+            'pengukuran_id'   => $data['pengukuran_id'],
+            'hasil_perhitungan' => $hasil
         ]);
-    }
-
-    /**
-     * Fungsi hitung langsung data bocoran untuk satu pengukuran_id
-     */
-    public function hitungLangsung($pengukuran_id)
-    {
-        $bocoran = $this->bocoranModel->where('pengukuran_id', $pengukuran_id)->first();
-
-        if (!$bocoran) {
-            return false; // Data tidak ditemukan
-        }
-
-        // Hitung nilai Q sesuai kode masing-masing
-        $talang1 = perhitunganQ_bocoran($bocoran['elv_624_t1'], $bocoran['elv_624_t1_kode']);
-        $talang2 = perhitunganQ_bocoran($bocoran['elv_615_t2'], $bocoran['elv_615_t2_kode']);
-        $pipa    = perhitunganQ_bocoran($bocoran['pipa_p1'], $bocoran['pipa_p1_kode']);
-
-        // Simpan ke tabel perhitungan
-        $this->perhitunganModel->save([
-            'pengukuran_id' => $pengukuran_id,
-            'talang1' => $talang1,
-            'talang2' => $talang2,
-            'pipa' => $pipa
-        ]);
-
-        return true;
     }
 }
